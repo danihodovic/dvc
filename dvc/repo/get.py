@@ -60,9 +60,9 @@ def get(url, path, out=None, rev=None):
     tmp_dir = os.path.join(dpath, "." + str(shortuuid.uuid()))
     try:
         with external_repo(cache_dir=tmp_dir, url=url, rev=rev) as repo:
-            if _is_git_file(repo, path):
-                _copy_git_file(repo, path, out)
-                return
+            #  if _is_git_file(repo, path):
+            #  _copy_git_file(repo, path, out)
+            #  return
 
             # Note: we need to replace state, because in case of getting DVC
             # dependency on CIFS or NFS filesystems, sqlite-based state
@@ -80,7 +80,16 @@ def get(url, path, out=None, rev=None):
             # the same cache file might be used a few times in a directory.
             repo.cache.local.cache_types = ["reflink", "hardlink", "copy"]
 
-            o = repo.find_out_by_relpath(path)
+            o = None
+            try:
+                o = repo.find_out_by_relpath(path)
+                if not o.use_cache:
+                    _copy_git_file(repo, path, out)
+                    return
+            except OutputNotFoundError:
+                _copy_git_file(repo, path, out)
+                return
+
             with repo.state:
                 repo.cloud.pull(o.get_used_cache())
             o.path_info = PathInfo(os.path.abspath(out))
